@@ -10,9 +10,6 @@ BookYT is a web app that lets users list YouTube videos as book-style blogs. Use
 - ☁️ Image upload via Cloudinary
 - 🚀 Built with React, Firebase, and Tailwind CSS
 
-## Demo
-
-https://user-images.githubusercontent.com/your-username/your-demo-video.mp4
 
 ## Getting Started
 
