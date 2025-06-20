@@ -1,12 +1,21 @@
-import {createContext, useContext,useState,useEffect} from "react"
+import { createContext, useContext, useState, useEffect } from "react";
 import { initializeApp } from "firebase/app";
-import { 
-    getAuth,
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    GoogleAuthProvider,
-    signInWithPopup,
-    onAuthStateChanged} from "firebase/auth";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+  onAuthStateChanged,
+} from "firebase/auth";
+import {
+  addDoc,
+  collection,
+  getFirestore,
+  serverTimestamp,
+  getDocs,
+} from "firebase/firestore";
+
 const FirebaseContext = createContext(null);
 
 const firebaseConfig = {
@@ -16,56 +25,66 @@ const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
-//   databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
 };
 
 const firebaseApp = initializeApp(firebaseConfig);
 const firebaseAuth = getAuth(firebaseApp);
+const firestoredb = getFirestore(firebaseApp);
 const GoogleProvider = new GoogleAuthProvider();
 
+export const useFirebase = () => useContext(FirebaseContext);
 
+export const FirebaseProvider = (props) => {
+  const [user, setUser] = useState(null);
 
-export const useFirebase = ()=> useContext(FirebaseContext);
+  useEffect(() => {
+    onAuthStateChanged(firebaseAuth, (user) => {
+      console.log("User:", user);
+      setUser(user || null);
+    });
+  }, []);
 
-export const FirebaseProvider = (props)=>{
+  const isLoggedIn = !!user;
 
-    const [user,setUser] = useState(null);
-    useEffect(()=>{
-        onAuthStateChanged(firebaseAuth,(user)=>{
-            console.log("User:",user)
-            if(user){
-                setUser(user);
-            } else{
-                setUser(null);
-            }
-        })
-    },[])
+  const SignInwithGoogle = () => signInWithPopup(firebaseAuth, GoogleProvider);
 
-    const isLoggedIn = user ? true :false;
+  const SignUpUserwithEmailandPassword = (email, password) =>
+    createUserWithEmailAndPassword(firebaseAuth, email, password);
 
-    const SignInwithGoogle = ()=>{
-        const result = signInWithPopup(firebaseAuth,GoogleProvider)
-        return result;
-    }
-    const SignUpUserwithEmailandPassword = (email,password)=>{
-        const result = createUserWithEmailAndPassword(firebaseAuth,email,password);
-        return result;
-    }
+  const SignInUserwithEmailandPassword = (email, password) =>
+    signInWithEmailAndPassword(firebaseAuth, email, password);
 
-    const SignInUserwithEmailandPassword = (email,password)=>{
-        const result = signInWithEmailAndPassword(firebaseAuth,email,password)
-        return result;
-    }
+  const handleCreateNewListing = async (title, isbnNumber, price, coverPicUrl) => {
+    return await addDoc(collection(firestoredb, "books"), {
+      title,
+      isbnNumber,
+      price: Number(price),
+      coverPicUrl,
+      createdAt: serverTimestamp(),
+      userID: user?.uid,
+      userEmail: user?.email,
+      displayName: user?.displayName,
+      userImg: user?.photoURL,
+    });
+  };
 
+  const listAllBooks = ()=>{
+    return getDocs(collection(firestoredb,"books"))
+  }
 
-    return(
-        <FirebaseContext.Provider value={{
-                SignUpUserwithEmailandPassword,
-                SignInUserwithEmailandPassword,
-                SignInwithGoogle,
-                isLoggedIn,
-            }}>
-            {props.children}
-        </FirebaseContext.Provider>
-    )
-}
+  return (
+    <FirebaseContext.Provider
+      value={{
+        SignUpUserwithEmailandPassword,
+        SignInUserwithEmailandPassword,
+        SignInwithGoogle,
+        handleCreateNewListing,
+        isLoggedIn,
+        user,
+        listAllBooks,
+      }}
+    >
+      {props.children}
+    </FirebaseContext.Provider>
+  );
+};
